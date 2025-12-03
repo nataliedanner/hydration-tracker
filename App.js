@@ -1,5 +1,5 @@
 // create a simple React dashboard that displays the title "Hydration Tracker"
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   SafeAreaView,
   View,
@@ -15,6 +15,95 @@ import {
 
 const TIMES = ['Morning', 'Afternoon', 'Evening', 'Night'];
 
+function CalendarScreen({ onBack, totalsByDate, goalOunces }) {
+  const [calendarDate, setCalendarDate] = useState(new Date());
+
+  function getMonthGrid(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+    const daysInMonth = end.getDate();
+    const startWeekday = start.getDay(); // 0 = Sun
+
+    const grid = [];
+    // leading blanks
+    for (let i = 0; i < startWeekday; i++) grid.push(null);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cur = new Date(year, month, d);
+      const iso = cur.toISOString().slice(0, 10);
+      grid.push({ day: d, date: cur, iso });
+    }
+
+    return { grid, monthLabel: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }) };
+  }
+
+  const { grid, monthLabel } = getMonthGrid(calendarDate);
+  const monthTotals = grid.filter(Boolean).map(d => totalsByDate[d.iso] || 0);
+  const maxInMonth = monthTotals.length ? Math.max(...monthTotals) : 0;
+
+  function prevMonth() {
+    setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  }
+  function nextMonth() {
+    setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  }
+
+  function onPressDay(iso) {
+    const total = totalsByDate[iso] || 0;
+    Alert.alert(iso, `${total} oz`);
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.modal, { margin: 16 }]}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity onPress={prevMonth} style={styles.navBtn}><Text style={styles.navText}>◀</Text></TouchableOpacity>
+          <Text style={styles.calendarTitle}>{monthLabel}</Text>
+          <TouchableOpacity onPress={nextMonth} style={styles.navBtn}><Text style={styles.navText}>▶</Text></TouchableOpacity>
+        </View>
+
+        <View style={styles.weekRow}>
+          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(w => (
+            <Text key={w} style={styles.weekDay}>{w}</Text>
+          ))}
+        </View>
+
+        <View style={styles.grid}>
+          {grid.map((cell, idx) => {
+            if (!cell) return <View key={`b${idx}`} style={styles.cellEmpty} />;
+            const total = totalsByDate[cell.iso] || 0;
+            const percent = goalOunces != null && goalOunces > 0
+              ? Math.min(total / goalOunces, 1)
+              : maxInMonth > 0
+                ? Math.min(total / maxInMonth, 1)
+                : 0;
+            const innerSize = 28 * percent + 6; // 6..34
+            return (
+              <Pressable key={cell.iso} style={styles.cell} onPress={() => onPressDay(cell.iso)}>
+                <View style={styles.ringWrap}>
+                  <View style={[styles.ring, { borderColor: percent > 0 ? '#007AFF' : '#e6e6e6' }]} />
+                  {percent > 0 ? (
+                    <View style={[styles.innerFill, { width: innerSize, height: innerSize, borderRadius: innerSize / 2 }]} />
+                  ) : null}
+                  <Text style={styles.dayText}>{cell.day}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
+          <TouchableOpacity onPress={onBack} style={[styles.modalBtn, styles.modalAdd]}>
+            <Text style={[styles.modalBtnText, { color: '#fff' }]}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 function App() {
   const [entries, setEntries] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -26,6 +115,9 @@ function App() {
   const [goalOunces, setGoalOunces] = useState(null); // number or null
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [goalInput, setGoalInput] = useState('');
+
+  // screen state: 'home' | 'calendar'
+  const [currentScreen, setCurrentScreen] = useState('home');
 
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', {
@@ -42,6 +134,16 @@ function App() {
   }, 0);
 
   const remainingToGoal = goalOunces != null ? Math.max(goalOunces - totalOunces, 0) : null;
+
+  // aggregated totals per day (yyyy-mm-dd)
+  const totalsByDate = useMemo(() => {
+    return entries.reduce((acc, e) => {
+      const d = new Date(e.createdAt);
+      const iso = d.toISOString().slice(0, 10); // yyyy-mm-dd
+      acc[iso] = (acc[iso] || 0) + Number(e.ounces || 0);
+      return acc;
+    }, {});
+  }, [entries]);
 
   function openAddModal(entry = null) {
     // Guard against being called with a press event object (onPress={openAddModal})
@@ -147,14 +249,26 @@ function App() {
     setGoalModalVisible(false);
   }
 
+  // render calendar screen if selected
+  if (currentScreen === 'calendar') {
+    return <CalendarScreen onBack={() => setCurrentScreen('home')} totalsByDate={totalsByDate} goalOunces={goalOunces} />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Hydration Tracker</Text>
-          <TouchableOpacity onPress={openGoalModal} style={styles.goalEditBtn}>
-            <Text style={styles.goalEditText}>{goalOunces != null ? `${goalOunces} oz goal` : 'Set goal'}</Text>
-          </TouchableOpacity>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={openGoalModal} style={styles.goalEditBtn}>
+              <Text style={styles.goalEditText}>{goalOunces != null ? `${goalOunces} oz goal` : 'Set goal'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setCurrentScreen('calendar')} style={styles.calendarBtn}>
+              <Text style={styles.calendarBtnText}>View Calendar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={styles.date}>{dateStr}</Text>
       </View>
@@ -291,6 +405,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', color: '#111' },
   goalEditBtn: { paddingHorizontal: 8, paddingVertical: 6 },
   goalEditText: { color: '#007AFF', fontWeight: '600' },
+  calendarBtn: { paddingHorizontal: 10, paddingVertical: 6, marginLeft: 8, borderRadius: 8, borderWidth: 1, borderColor: '#007AFF' },
+  calendarBtnText: { color: '#007AFF', fontWeight: '600' },
   date: { marginTop: 6, fontSize: 13, color: '#666' },
   content: { flex: 1, marginTop: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
@@ -384,7 +500,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // styles for total row
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -400,10 +515,23 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 14, color: '#444', fontWeight: '600' },
   totalValue: { fontSize: 18, color: '#007AFF', fontWeight: '800' },
 
-  // goal text styles
   goalHint: { fontSize: 13, color: '#666' },
   remaining: { fontSize: 14, color: '#D9534F', fontWeight: '700' },
   goalReached: { fontSize: 14, color: '#2b8a3e', fontWeight: '700' },
+
+  calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  calendarTitle: { fontSize: 16, fontWeight: '700' },
+  navBtn: { padding: 6 },
+  navText: { fontSize: 16, color: '#007AFF' },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  weekDay: { width: 38, textAlign: 'center', color: '#666', fontSize: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: 38, height: 54, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  cellEmpty: { width: 38, height: 54, marginBottom: 6 },
+  ringWrap: { alignItems: 'center', justifyContent: 'center', width: 38, height: 38 },
+  ring: { position: 'absolute', width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderColor: '#e6e6e6' },
+  innerFill: { position: 'absolute', backgroundColor: '#007AFF', opacity: 0.9 },
+  dayText: { position: 'absolute', color: '#111', fontSize: 12, fontWeight: '600' },
 });
 
 export default App;
