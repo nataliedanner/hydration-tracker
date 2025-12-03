@@ -22,6 +22,11 @@ function App() {
   const [timeOfDay, setTimeOfDay] = useState(TIMES[0]);
   const [editingId, setEditingId] = useState(null);
 
+  // goal state and modal
+  const [goalOunces, setGoalOunces] = useState(null); // number or null
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -29,6 +34,14 @@ function App() {
     day: 'numeric',
     year: 'numeric',
   });
+
+  // compute total ounces from entries
+  const totalOunces = entries.reduce((sum, e) => {
+    const val = Number(e.ounces);
+    return sum + (Number.isFinite(val) ? val : 0);
+  }, 0);
+
+  const remainingToGoal = goalOunces != null ? Math.max(goalOunces - totalOunces, 0) : null;
 
   function openAddModal(entry = null) {
     // Guard against being called with a press event object (onPress={openAddModal})
@@ -119,10 +132,30 @@ function App() {
     );
   }
 
+  function openGoalModal() {
+    setGoalInput(goalOunces != null ? String(goalOunces) : '');
+    setGoalModalVisible(true);
+  }
+
+  function saveGoal() {
+    const g = parseFloat(goalInput);
+    if (Number.isNaN(g) || g <= 0) {
+      Alert.alert('Invalid goal', 'Please enter a positive number of ounces for your goal.');
+      return;
+    }
+    setGoalOunces(g);
+    setGoalModalVisible(false);
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Hydration Tracker</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Hydration Tracker</Text>
+          <TouchableOpacity onPress={openGoalModal} style={styles.goalEditBtn}>
+            <Text style={styles.goalEditText}>{goalOunces != null ? `${goalOunces} oz goal` : 'Set goal'}</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.date}>{dateStr}</Text>
       </View>
 
@@ -137,6 +170,24 @@ function App() {
           style={styles.list}
         />
 
+        {/* total ounces row */}
+        <View style={styles.totalRow}>
+          <View>
+            <Text style={styles.totalLabel}>Total today</Text>
+            <Text style={styles.totalValue}>{totalOunces} oz</Text>
+          </View>
+
+          <View style={{ alignItems: 'flex-end' }}>
+            {goalOunces == null ? (
+              <Text style={styles.goalHint}>No goal set</Text>
+            ) : remainingToGoal > 0 ? (
+              <Text style={styles.remaining}>{remainingToGoal} oz away from goal</Text>
+            ) : (
+              <Text style={styles.goalReached}>Goal reached!</Text>
+            )}
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.button}
           onPress={() => openAddModal()}
@@ -146,6 +197,7 @@ function App() {
         </TouchableOpacity>
       </View>
 
+      {/* entry modal */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -154,7 +206,7 @@ function App() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Add Water Intake</Text>
+            <Text style={styles.modalTitle}>{editingId ? 'Edit Water Intake' : 'Add Water Intake'}</Text>
 
             <Text style={styles.inputLabel}>Ounces</Text>
             <TextInput
@@ -189,7 +241,40 @@ function App() {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={addEntry} style={[styles.modalBtn, styles.modalAdd]}>
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Add</Text>
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>{editingId ? 'Save' : 'Add'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* goal modal */}
+      <Modal
+        visible={goalModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setGoalModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Daily Goal (oz)</Text>
+
+            <Text style={styles.inputLabel}>Ounces</Text>
+            <TextInput
+              value={goalInput}
+              onChangeText={setGoalInput}
+              keyboardType="numeric"
+              placeholder="e.g. 64"
+              style={styles.input}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setGoalModalVisible(false)} style={[styles.modalBtn, styles.modalCancel]}>
+                <Text style={styles.modalBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={saveGoal} style={[styles.modalBtn, styles.modalAdd]}>
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -201,8 +286,11 @@ function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  header: { paddingTop: 8, paddingBottom: 12, alignItems: 'center' },
+  header: { paddingTop: 8, paddingBottom: 12 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 26, fontWeight: '700', color: '#111' },
+  goalEditBtn: { paddingHorizontal: 8, paddingVertical: 6 },
+  goalEditText: { color: '#007AFF', fontWeight: '600' },
   date: { marginTop: 6, fontSize: 13, color: '#666' },
   content: { flex: 1, marginTop: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
@@ -295,6 +383,27 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
   },
+
+  // styles for total row
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  totalLabel: { fontSize: 14, color: '#444', fontWeight: '600' },
+  totalValue: { fontSize: 18, color: '#007AFF', fontWeight: '800' },
+
+  // goal text styles
+  goalHint: { fontSize: 13, color: '#666' },
+  remaining: { fontSize: 14, color: '#D9534F', fontWeight: '700' },
+  goalReached: { fontSize: 14, color: '#2b8a3e', fontWeight: '700' },
 });
 
 export default App;
