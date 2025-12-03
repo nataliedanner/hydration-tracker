@@ -20,6 +20,7 @@ function App() {
   const [modalVisible, setModalVisible] = useState(false);
   const [ounces, setOunces] = useState('');
   const [timeOfDay, setTimeOfDay] = useState(TIMES[0]);
+  const [editingId, setEditingId] = useState(null);
 
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', {
@@ -29,9 +30,23 @@ function App() {
     year: 'numeric',
   });
 
-  function openAddModal() {
-    setOunces('');
-    setTimeOfDay(TIMES[0]);
+  function openAddModal(entry = null) {
+    // Guard against being called with a press event object (onPress={openAddModal})
+    if (entry && entry.nativeEvent) {
+      entry = null;
+    }
+
+    // Only populate fields if entry is a real object with a valid ounces value.
+    if (entry && typeof entry === 'object' && entry.ounces != null) {
+      setOunces(String(entry.ounces));
+      setTimeOfDay(entry.timeOfDay ?? TIMES[0]);
+      setEditingId(entry.id != null ? entry.id : null);
+    } else {
+      // For a fresh add or any invalid entry object, reset the input to an empty string.
+      setOunces('');
+      setTimeOfDay(TIMES[0]);
+      setEditingId(null);
+    }
     setModalVisible(true);
   }
 
@@ -41,23 +56,64 @@ function App() {
       Alert.alert('Invalid input', 'Please enter a positive number of ounces.');
       return;
     }
-    const newEntry = {
-      id: Date.now().toString(),
-      ounces: oz,
-      timeOfDay,
-      createdAt: new Date().toISOString(),
-    };
-    setEntries(prev => [newEntry, ...prev]);
+
+    if (editingId) {
+      // update existing entry
+      setEntries(prev =>
+        prev.map(e => (e.id === editingId ? { ...e, ounces: oz, timeOfDay } : e))
+      );
+      setEditingId(null);
+    } else {
+      const newEntry = {
+        id: Date.now().toString(),
+        ounces: oz,
+        timeOfDay,
+        createdAt: new Date().toISOString(),
+      };
+      setEntries(prev => [newEntry, ...prev]);
+    }
+
     setModalVisible(false);
+  }
+
+  function confirmDelete(id) {
+    Alert.alert('Delete entry', 'Are you sure you want to delete this entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setEntries(prev => prev.filter(e => e.id !== id));
+        },
+      },
+    ]);
   }
 
   function renderItem({ item }) {
     const time = new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return (
       <View style={styles.card}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.itemName}>{item.ounces} oz</Text>
           <Text style={styles.itemSub}>{item.timeOfDay} • {time}</Text>
+        </View>
+
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            onPress={() => openAddModal(item)}
+            style={[styles.smallBtn, styles.editBtn]}
+            accessibilityLabel="Edit entry"
+          >
+            <Text style={styles.smallBtnText}>Edit</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => confirmDelete(item.id)}
+            style={[styles.smallBtn, styles.deleteBtn]}
+            accessibilityLabel="Delete entry"
+          >
+            <Text style={[styles.smallBtnText, { color: '#B00020' }]}>Delete</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -83,7 +139,7 @@ function App() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={openAddModal}
+          onPress={() => openAddModal()}
           accessibilityLabel="Add water intake"
         >
           <Text style={styles.buttonText}>Add Water Intake</Text>
@@ -102,7 +158,7 @@ function App() {
 
             <Text style={styles.inputLabel}>Ounces</Text>
             <TextInput
-              value={ounces}
+              value={ounces ?? ''}
               onChangeText={setOunces}
               keyboardType="numeric"
               placeholder="e.g. 8"
@@ -213,6 +269,32 @@ const styles = StyleSheet.create({
   modalCancel: { backgroundColor: '#f1f1f1' },
   modalAdd: { backgroundColor: '#007AFF' },
   modalBtnText: { color: '#111', fontWeight: '600' },
+
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  smallBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginLeft: 6,
+    backgroundColor: 'transparent',
+  },
+  editBtn: {
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: '#F1B0B6',
+  },
+  smallBtnText: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
 });
 
 export default App;
