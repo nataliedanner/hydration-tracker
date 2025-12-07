@@ -285,13 +285,13 @@ function App() {
 
         <Text style={styles.date}>{dateStr}</Text>
 
-        {/* View Calendar button placed below the date and styled like the Back button */}
+        {/* View Calendar button placed below the date and aligned to the left */}
         <View style={styles.calendarBtnContainer}>
           <TouchableOpacity
             onPress={() => setCurrentScreen('calendar')}
-            style={[styles.modalBtn, styles.modalAdd, styles.calendarBtnMain]}
+            style={[styles.calendarBtnMain]}
           >
-            <Text style={[styles.modalBtnText, { color: '#fff' }]}>View Calendar</Text>
+            <Text style={[styles.modalBtnText, { color: '#fff', fontSize: 14 }]}>View Calendar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -422,8 +422,12 @@ function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  header: { paddingTop: 8, paddingBottom: 12 },
+  // increased overall padding so home text isn't so close to the edges
+  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+
+  // give header a little horizontal padding so title/controls don't hug the edge
+  header: { paddingTop: 12, paddingBottom: 12, paddingHorizontal: 8 },
+
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 26, fontWeight: '700', color: '#111' },
   goalEditBtn: { paddingHorizontal: 8, paddingVertical: 6 },
@@ -431,7 +435,10 @@ const styles = StyleSheet.create({
   calendarBtn: { paddingHorizontal: 10, paddingVertical: 6, marginLeft: 8, borderRadius: 8, borderWidth: 1, borderColor: '#007AFF' },
   calendarBtnText: { color: '#007AFF', fontWeight: '600' },
   date: { marginTop: 6, fontSize: 13, color: '#666' },
-  content: { flex: 1, marginTop: 12 },
+
+  // add horizontal padding inside main content area
+  content: { flex: 1, marginTop: 12, paddingHorizontal: 8 },
+
   sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
   list: { flex: 1 },
   emptyText: { color: '#666', textAlign: 'center', marginTop: 24 },
