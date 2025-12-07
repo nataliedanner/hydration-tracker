@@ -43,6 +43,12 @@ function CalendarScreen({ onBack, totalsByDate, goalOunces }) {
   const monthTotals = grid.filter(Boolean).map(d => totalsByDate[d.iso] || 0);
   const maxInMonth = monthTotals.length ? Math.max(...monthTotals) : 0;
 
+  // new: compute days in month and how many reached the goal
+  const daysInMonth = grid.filter(Boolean).length;
+  const daysReached = goalOunces != null
+    ? grid.filter(Boolean).reduce((acc, d) => acc + ((totalsByDate[d.iso] || 0) >= goalOunces ? 1 : 0), 0)
+    : 0;
+
   function prevMonth() {
     setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   }
@@ -60,7 +66,9 @@ function CalendarScreen({ onBack, totalsByDate, goalOunces }) {
       <View style={[styles.modal, { margin: 16 }]}>
         <View style={styles.calendarHeader}>
           <TouchableOpacity onPress={prevMonth} style={styles.navBtn}><Text style={styles.navText}>◀</Text></TouchableOpacity>
-          <Text style={styles.calendarTitle}>{monthLabel}</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.calendarTitle}>{monthLabel}</Text>
+          </View>
           <TouchableOpacity onPress={nextMonth} style={styles.navBtn}><Text style={styles.navText}>▶</Text></TouchableOpacity>
         </View>
 
@@ -92,6 +100,17 @@ function CalendarScreen({ onBack, totalsByDate, goalOunces }) {
               </Pressable>
             );
           })}
+        </View>
+
+        {/* moved progress summary below the calendar grid */}
+        <View style={{ marginTop: 8, alignItems: 'center' }}>
+          {goalOunces != null ? (
+            <Text style={styles.calendarProgress}>
+              You've reached your goal {daysReached} / {daysInMonth} days
+            </Text>
+          ) : (
+            <Text style={styles.calendarProgressAlt}>No goal set</Text>
+          )}
         </View>
 
         <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
@@ -532,6 +551,20 @@ const styles = StyleSheet.create({
   ring: { position: 'absolute', width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderColor: '#e6e6e6' },
   innerFill: { position: 'absolute', backgroundColor: '#007AFF', opacity: 0.9 },
   dayText: { position: 'absolute', color: '#111', fontSize: 12, fontWeight: '600' },
+
+  calendarProgress: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  calendarProgressAlt: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
 });
 
 export default App;
