@@ -278,18 +278,22 @@ function App() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Hydration Tracker</Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={openGoalModal} style={styles.goalEditBtn}>
-              <Text style={styles.goalEditText}>{goalOunces != null ? `${goalOunces} oz goal` : 'Set goal'}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setCurrentScreen('calendar')} style={styles.calendarBtn}>
-              <Text style={styles.calendarBtnText}>View Calendar</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={openGoalModal} style={styles.goalEditBtn}>
+            <Text style={styles.goalEditText}>{goalOunces != null ? `${goalOunces} oz goal` : 'Set goal'}</Text>
+          </TouchableOpacity>
         </View>
+
         <Text style={styles.date}>{dateStr}</Text>
+
+        {/* View Calendar button placed below the date and styled like the Back button */}
+        <View style={styles.calendarBtnContainer}>
+          <TouchableOpacity
+            onPress={() => setCurrentScreen('calendar')}
+            style={[styles.modalBtn, styles.modalAdd, styles.calendarBtnMain]}
+          >
+            <Text style={[styles.modalBtnText, { color: '#fff' }]}>View Calendar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -564,6 +568,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+
+  calendarBtnContainer: {
+    marginTop: 8,
+    alignItems: 'flex-start', // left align the button
+  },
+  calendarBtnMain: {
+    paddingVertical: 8,       // a bit smaller vertically
+    paddingHorizontal: 12,    // a bit smaller horizontally
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    alignSelf: 'flex-start',  // ensure button sits at left edge of the container
   },
 });
 
